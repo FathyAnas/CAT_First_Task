@@ -14,7 +14,6 @@
 #include <string.h>
 #include <stdlib.h> 
 
-#include "DIO_Int.h"
 #include "LCD_Int.h"
 #include "KEYPAD_Int.h"
 
@@ -68,6 +67,9 @@ void CALC_Runnable(void)
 	}
 }
 
+/***********************************************************   Static state Functions   ****************************************************************/
+
+/* Function that fills the Input string and change the state to (VERFING_INPUT) if the input is '='  */
 static void CALC_GetInput(void)
 {
 	u8 key=DEFAULT_KEY;
@@ -95,6 +97,8 @@ static void CALC_GetInput(void)
 	}
 }
 
+/* Function that validate the Input string and change the state to (SEPARATING_INPUT) if the input is (VALID),
+	if INVALID reset the program and print error massage */
 static void CALC_VerifyInput(void)
 {
 	CALC_InputStatus_t status = VALID;
@@ -103,21 +107,24 @@ static void CALC_VerifyInput(void)
 	/* If the first char is operation except '-' for the negative sign */
 	if(CALC_InputStr[0]=='*' || CALC_InputStr[0]=='/' || CALC_InputStr[0]=='+' )
 	{
-		// operation first
 		status=INVALID; 
 	}
 	
 	for(i=1;CALC_InputStr[i];i++)
 	{
+		/* Counts number of operations */
 		if(CALC_InputStr[i]=='*' || CALC_InputStr[i]=='/' || CALC_InputStr[i]=='+' || CALC_InputStr[i]=='-' )
 		{
 			opCount++;
+			
+			/* if there is 2 operations except for the (-ve) in the second operand  */
 			if (opCount==2 
 				&& (!(CALC_InputStr[i]=='-' && (CALC_InputStr[i-1]=='*' || CALC_InputStr[i-1]=='/' || CALC_InputStr[i-1]=='+' || CALC_InputStr[i-1]=='-') ))			)
 			{
 				// invalid 
 				status=INVALID;
 			}
+			/* if there is more than 2  */
 			if (opCount>2)
 			{
 				// invalid
@@ -125,6 +132,7 @@ static void CALC_VerifyInput(void)
 			}
 		}
 	}
+	/* if there is an operation in the last char of the input */
 	if(CALC_InputStr[i-1]=='*' || CALC_InputStr[i-1]=='/' || CALC_InputStr[i-1]=='+' || CALC_InputStr[i-1]=='-')
 	{
 		// operation first
@@ -146,6 +154,7 @@ static void CALC_VerifyInput(void)
 	}
 }
 
+/* Function that separate the input string into 2 operands and 1 operation int the CALC_InputElements struct and change the state to CALCULATING_RESULT */
 static void CALC_SeparateInput(void)
 {
 	u8 i,j;
@@ -173,6 +182,7 @@ static void CALC_SeparateInput(void)
 	
 }
 
+/* Function that calculate the result and prints error on division by zero and update status to NEXT_INSREUCTION */
 static void CALC_CalculatingResult(void)
 {
 	switch(CALC_InputElements.operation)
@@ -210,10 +220,14 @@ static void CALC_CalculatingResult(void)
 	CALC_status=NEXT_INSREUCTION;
 }
 
+/* function the select what to do based on the input
+    if input is 'c' reset and start a new operation
+	 if input is number reset and start a new operation
+	  if input is operation continue a new operation with the result as the first operand  */
 static void CALC_NextInstruction(void)
 {
 	u8 key=KEYPAD_GetKey();
-	s32 result_copy=CALC_Result;
+	s32 result_copy;
 	if (key=='c')
 	{
 		CALC_Reset();
@@ -221,6 +235,7 @@ static void CALC_NextInstruction(void)
 	}
 	else if (key=='+' || key=='-' || key=='*' || key=='/')
 	{
+		result_copy=CALC_Result;
 		CALC_Reset();
 		itoa(result_copy,(c8 *)CALC_InputStr,10);
 		CALC_InputStrIndex=strlen((const c8 *)CALC_InputStr);
@@ -238,7 +253,14 @@ static void CALC_NextInstruction(void)
 		LCD_WriteChar(key);
 		CALC_status=GETTING_INPUT;
 	}
+	else
+	{
+		// do nothing
+	}
 }
+
+/***********************************************************    Reset Function    ****************************************************************/
+
 static void CALC_Reset(void)
 {
 	u8 i;
